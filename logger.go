@@ -28,14 +28,14 @@ type Logger interface {
 type ConsoleLogger struct{}
 
 func (_ ConsoleLogger) LogStartingLayer(index int) {
-	log.Printf("Starting layer %d", index)
+	log.Printf("Starting layer %d ...", index)
 }
 
 func (_ ConsoleLogger) LogCreatedNegatives(count int) {
-	log.Printf("Created %d negatives", count)
+	log.Printf("Created %d negatives.", count)
 }
 
 func (_ ConsoleLogger) LogFeature(numFeatures int, retention, exclusion float64) {
-	log.Printf("Added feature (%d total): retention=%e exclusion=%e", numFeatures,
+	log.Printf("Feature %d: retention=%f exclusion=%f", numFeatures,
 		retention, exclusion)
 }

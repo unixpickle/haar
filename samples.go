@@ -9,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	_ "image/jpeg"
+	_ "image/png"
 )
 
 const adversarialAttempts = 10

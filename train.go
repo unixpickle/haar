@@ -66,17 +66,17 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 		if l != nil {
 			l.LogCreatedNegatives(len(negs))
 		}
-		layer := trainLayer(reqs, positives, negs, features, l)
-		if layer == nil {
+		layer, good := trainLayer(reqs, positives, negs, features, l)
+		res.Layers = append(res.Layers, layer)
+		if !good {
 			break
 		}
-		res.Layers = append(res.Layers, layer)
 	}
 	return &res
 }
 
 func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature,
-	l Logger) *Classifier {
+	l Logger) (classifier *Classifier, satisfactory bool) {
 
 	allSamples := make([]IntegralImage, len(pos)+len(neg))
 	copy(allSamples, pos)
@@ -100,14 +100,15 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 	for i := 0; i < reqs.MaxFeatures; i++ {
 		gradient.Step()
 		threshold = necessaryThreshold(gradient.OutCache, desired, reqs.PositiveRetention)
-		ret, exc := boostingScores(gradient.OutCache, desired)
+		ret, exc := boostingScores(gradient.OutCache, desired, threshold)
 		l.LogFeature(i+1, ret, exc)
 		if ret >= reqs.PositiveRetention && exc >= reqs.NegativeExclusion {
+			satisfactory = true
 			break
 		}
 	}
 
-	var classifier Classifier
+	classifier = &Classifier{}
 	for i, feature := range gradient.Sum.Classifiers {
 		c := feature.(*boostingClassifier)
 		weight := gradient.Sum.Weights[i]
@@ -116,7 +117,8 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 		classifier.Weights = append(classifier.Weights, weight)
 	}
 	classifier.Threshold = threshold
-	return &classifier
+
+	return
 }
 
 type boostingSamples []IntegralImage
@@ -262,19 +264,20 @@ func necessaryThreshold(boostOut, desired linalg.Vector, retention float64) floa
 	return math.Min(0, res)
 }
 
-func boostingScores(boostOut, desired linalg.Vector) (retention, exclusion float64) {
+func boostingScores(boostOut, desired linalg.Vector, thresh float64) (retention,
+	exclusion float64) {
 	var retained, positive int
 	var excluded, negative int
 
 	for i, des := range desired {
 		if des > 0 {
 			positive++
-			if boostOut[i] > 0 {
+			if boostOut[i] > thresh {
 				retained++
 			}
 		} else {
 			negative++
-			if boostOut[i] <= 0 {
+			if boostOut[i] <= thresh {
 				excluded++
 			}
 		}
