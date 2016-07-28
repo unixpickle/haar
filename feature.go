@@ -3,13 +3,47 @@ package haar
 // A Feature is anything capable of computing a value
 // for itself given an image window.
 type Feature interface {
-	// Bounds returns the rectangle taken which is taken
-	// into account by this feature in each window.
+	// Bounds returns the rectangle in each window that
+	// this feature takes into account.
 	Bounds() (x, y, width, height int)
 
 	// FeatureValue evaluates the feature in the given
 	// window image.
 	FeatureValue(img IntegralImage) float64
+}
+
+// AllFeatures builds a list of every haar-like feature
+// that fits in the given window size.
+func AllFeatures(width, height int) []Feature {
+	var res []Feature
+	for w := 1; w <= width; w++ {
+		for h := 1; h <= height; h++ {
+			if h == 1 && w == 1 {
+				continue
+			}
+			for y := 0; y <= height-h; y++ {
+				for x := 0; x <= width-w; x++ {
+					rect := featureRect{x, y, w, h}
+					if w%2 == 0 {
+						res = append(res, &rectPair{rect, true})
+					}
+					if h%2 == 0 {
+						res = append(res, &rectPair{rect, false})
+					}
+					if w%2 == 0 && h%2 == 0 {
+						res = append(res, &diagonalRects{rect})
+					}
+					if w%3 == 0 {
+						res = append(res, &tripleRects{rect, true})
+					}
+					if h%3 == 0 {
+						res = append(res, &tripleRects{rect, false})
+					}
+				}
+			}
+		}
+	}
+	return res
 }
 
 type featureRect struct {
