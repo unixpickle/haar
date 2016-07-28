@@ -51,6 +51,24 @@ func BitmapIntegralImage(pixels []float64, width, height int) IntegralImage {
 	return res
 }
 
+// CropIntegralImage returns an image which corresponds
+// to the given region of the larger image.
+func CropIntegralImage(img IntegralImage, x, y, width, height int) IntegralImage {
+	if x < 0 || y < 0 {
+		panic("crop coordinates cannot be negative")
+	}
+	if x+width > img.Width() || y+height > img.Height() {
+		panic("crop rectangle goes out of bounds")
+	}
+	return &croppedImage{
+		img: img,
+		x:   x,
+		y:   y,
+		w:   width,
+		h:   height,
+	}
+}
+
 type sliceIntegralImage struct {
 	integrals []float64
 	width     int
@@ -70,4 +88,24 @@ func (s *sliceIntegralImage) IntegralAt(x, y int) float64 {
 		return 0
 	}
 	return s.integrals[(x-1)+s.width*(y-1)]
+}
+
+type croppedImage struct {
+	img IntegralImage
+	x   int
+	y   int
+	w   int
+	h   int
+}
+
+func (c *croppedImage) Width() int {
+	return c.w
+}
+
+func (c *croppedImage) Height() int {
+	return c.h
+}
+
+func (c *croppedImage) IntegralAt(x, y int) float64 {
+	return c.img.IntegralAt(x+c.x, y+c.y)
 }
