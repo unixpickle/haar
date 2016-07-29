@@ -21,7 +21,7 @@ type Logger interface {
 	// The retention and exclusion arguments indicate the
 	// positive retention rate and the negative exclusion
 	// rate, respectively.
-	LogFeature(numFeatures int, retention, exclusion float64)
+	LogFeature(numFeatures int, retention, exclusion float64, f *Feature)
 }
 
 // A ConsoleLogger logs output using the log package.
@@ -35,7 +35,7 @@ func (_ ConsoleLogger) LogCreatedNegatives(count int) {
 	log.Printf("Created %d negatives.", count)
 }
 
-func (_ ConsoleLogger) LogFeature(numFeatures int, retention, exclusion float64) {
-	log.Printf("Feature %d: retention=%f exclusion=%f", numFeatures,
-		retention, exclusion)
+func (_ ConsoleLogger) LogFeature(numFeatures int, retention, exclusion float64, f *Feature) {
+	log.Printf("Feature %d: retention=%f exclusion=%f type=%d", numFeatures,
+		retention, exclusion, f.Type)
 }

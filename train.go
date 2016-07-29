@@ -103,11 +103,12 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []*Featur
 		threshold = necessaryThreshold(gradient.OutCache, desired, reqs.PositiveRetention)
 		ret, exc := boostingScores(gradient.OutCache, desired, threshold)
 		if l != nil {
+			latestFeature := gradient.Sum.Classifiers[i].(*boostingClassifier).Feature
 			if exc > 0 {
-				l.LogFeature(i+1, ret, exc)
+				l.LogFeature(i+1, ret, exc, latestFeature)
 			} else {
 				rawRet, rawExc := boostingScores(gradient.OutCache, desired, 0)
-				l.LogFeature(i+1, rawRet, rawExc)
+				l.LogFeature(i+1, rawRet, rawExc, latestFeature)
 			}
 		}
 		if ret >= reqs.PositiveRetention && exc >= reqs.NegativeExclusion {
