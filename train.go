@@ -185,7 +185,7 @@ func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) bo
 
 	var bestOption boostingOption
 	for option := range optionChan {
-		if math.Abs(option.WeightDot) >= bestOption.WeightDot {
+		if math.Abs(option.WeightDot) >= math.Abs(bestOption.WeightDot) {
 			bestOption = option
 		}
 	}
