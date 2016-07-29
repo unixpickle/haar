@@ -7,9 +7,16 @@ const (
 	DefaultScanStride = 1
 )
 
-// A Classifier is a weighted sum of single-feature
+// A Classifier classifies image windows.
+type Classifier interface {
+	// Classify returns whether an image is positive (true)
+	// or negative (false).
+	Classify(img IntegralImage) bool
+}
+
+// A Layer is a weighted sum of single-feature
 // classifiers.
-type Classifier struct {
+type Layer struct {
 	// Features is all the features.
 	Features []*Feature
 
@@ -30,9 +37,9 @@ type Classifier struct {
 	Threshold float64
 }
 
-// Classify runs the classifier on an image.
+// Classify runs the layer on an image.
 // It returns true if the sample is positive.
-func (c *Classifier) Classify(img IntegralImage) bool {
+func (c *Layer) Classify(img IntegralImage) bool {
 	var sum float64
 	for i, feature := range c.Features {
 		var output float64
@@ -51,7 +58,7 @@ func (c *Classifier) Classify(img IntegralImage) bool {
 // only if every classifier in the series returns
 // positive.
 type Cascade struct {
-	Layers       []*Classifier
+	Layers       []*Layer
 	WindowWidth  int
 	WindowHeight int
 }

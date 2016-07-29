@@ -49,25 +49,42 @@ type Requirements struct {
 func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 	var res Cascade
 
+	TrainMore(&res, layerReqs, s, l)
+
+	return &res
+}
+
+// TrainMore is like Train, but it adds layers onto an
+// existing cascade instead of building a cascade from
+// scratch.
+//
+// The list of requirements is for the layers added,
+// so the number of requirements specifies how many
+// layers to add, not the total number of layers in
+// the final cascade.
+func TrainMore(c *Cascade, addReqs []*Requirements, s SampleSource, l Logger) {
 	positives := s.Positives()
+	if len(c.Layers) > 0 {
+		positives = acceptedPositives(positives, c)
+	}
 	if len(positives) == 0 {
-		return &res
+		return
 	}
 
-	res.WindowWidth = positives[0].Width()
-	res.WindowHeight = positives[0].Height()
+	c.WindowWidth = positives[0].Width()
+	c.WindowHeight = positives[0].Height()
 
 	features := AllFeatures(positives[0].Width(), positives[0].Height())
 
-	for i, reqs := range layerReqs {
+	for _, reqs := range addReqs {
 		if l != nil {
-			l.LogStartingLayer(i)
+			l.LogStartingLayer(len(c.Layers))
 		}
 		var negs []IntegralImage
-		if i == 0 {
+		if len(c.Layers) == 0 {
 			negs = s.InitialNegatives()
 		} else {
-			negs = s.AdversarialNegatives(&res)
+			negs = s.AdversarialNegatives(c)
 		}
 		if l != nil {
 			l.LogCreatedNegatives(len(negs))
@@ -76,13 +93,13 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 			break
 		}
 		layer := trainLayer(reqs, positives, negs, features, l)
-		res.Layers = append(res.Layers, layer)
+		c.Layers = append(c.Layers, layer)
+		positives = acceptedPositives(positives, layer)
 	}
-	return &res
 }
 
 func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []*Feature,
-	l Logger) *Classifier {
+	l Logger) *Layer {
 	allSamples := make([]IntegralImage, len(pos)+len(neg))
 	copy(allSamples, pos)
 	copy(allSamples[len(pos):], neg)
@@ -122,17 +139,17 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []*Featur
 		}
 	}
 
-	classifier := &Classifier{}
+	layer := &Layer{}
 	for i, feature := range gradient.Sum.Classifiers {
 		c := feature.(*boostingClassifier)
 		weight := gradient.Sum.Weights[i]
-		classifier.Features = append(classifier.Features, c.Feature)
-		classifier.Thresholds = append(classifier.Thresholds, c.Threshold)
-		classifier.Weights = append(classifier.Weights, weight)
+		layer.Features = append(layer.Features, c.Feature)
+		layer.Thresholds = append(layer.Thresholds, c.Threshold)
+		layer.Weights = append(layer.Weights, weight)
 	}
-	classifier.Threshold = threshold
+	layer.Threshold = threshold
 
-	return classifier
+	return layer
 }
 
 type boostingSamples []IntegralImage
@@ -300,4 +317,14 @@ func boostingScores(boostOut, desired linalg.Vector, thresh float64) (retention,
 	retention = float64(retained) / float64(positive)
 	exclusion = float64(excluded) / float64(negative)
 	return
+}
+
+func acceptedPositives(pos []IntegralImage, c Classifier) []IntegralImage {
+	res := make([]IntegralImage, 0, len(pos))
+	for _, x := range pos {
+		if c.Classify(x) {
+			res = append(res, x)
+		}
+	}
+	return res
 }
