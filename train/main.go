@@ -7,15 +7,28 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/unixpickle/haar"
 )
 
+const defaultInitialRetention = 0.99
+
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintf(os.Stderr, "Usage: %s pos_dir neg_dir output_file\n",
+	if len(os.Args) != 4 && len(os.Args) != 5 {
+		fmt.Fprintf(os.Stderr, "Usage: %s pos_dir neg_dir output_file [initial_retention]\n",
 			os.Args[0])
 		os.Exit(1)
+	}
+
+	initialRetention := defaultInitialRetention
+	if len(os.Args) == 5 {
+		var err error
+		initialRetention, err = strconv.ParseFloat(os.Args[4], 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Invalid initial retention:", os.Args[4])
+			os.Exit(1)
+		}
 	}
 
 	log.Println("Loading samples ...")
@@ -42,6 +55,7 @@ func main() {
 			MaxFeatures:       100,
 		})
 	}
+	reqs[0].PositiveRetention = initialRetention
 
 	cascade := haar.Train(reqs, samples, haar.ConsoleLogger{})
 
