@@ -34,6 +34,47 @@ func TestBitmapIntegralImage(t *testing.T) {
 	}
 }
 
+func TestDualImage(t *testing.T) {
+	bmp := BitmapIntegralImage(imageTestBitmap, imageTestBitmapWidth,
+		imageTestBitmapHeight)
+	cropping := NewDualImage(bmp).Window(2, 1, 3, 4)
+
+	var sum float64
+	var squareSum float64
+	for x := 2; x < 5; x++ {
+		for y := 1; y < 5; y++ {
+			pixel := imageTestBitmap[x+imageTestBitmapWidth*y]
+			sum += pixel
+			squareSum += pixel * pixel
+		}
+	}
+
+	mean := sum / 12.0
+	stddev := math.Sqrt(squareSum/12 - mean*mean)
+
+	for x := 0; x <= 3; x++ {
+		for y := 0; y <= 4; y++ {
+			area := float64((x + 2) * (y + 1))
+			expected := (bmp.IntegralAt(x+2, y+1) - mean*area) / stddev
+			actual := cropping.IntegralAt(x, y)
+			if math.Abs(actual-expected) > 1e-5 {
+				t.Errorf("at %d,%d expected %f but got %f", x, y, expected, actual)
+			}
+		}
+	}
+
+	for x := 0; x < 3; x++ {
+		for y := 0; y < 4; y++ {
+			actual := cropping.IntegralAt(x+1, y+1) + cropping.IntegralAt(x, y) -
+				(cropping.IntegralAt(x, y+1) + cropping.IntegralAt(x+1, y))
+			expected := (imageTestBitmap[(x+2)+imageTestBitmapWidth*(y+1)] - mean) / stddev
+			if math.Abs(actual-expected) > 1e-5 {
+				t.Errorf("pixel at %d,%d should be %f but it's %f", x, y, expected, actual)
+			}
+		}
+	}
+}
+
 func imageTestIntegral(x, y int) float64 {
 	var sum float64
 	for stepX := 0; stepX < x; stepX++ {
