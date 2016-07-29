@@ -14,6 +14,8 @@ import (
 	_ "image/png"
 )
 
+const randomAdversaryAttempts = 50
+
 // A SampleSource provides images for use while training
 // cascade classifiers.
 type SampleSource interface {
@@ -154,6 +156,18 @@ func (i *imageSampleSource) AdversarialNegatives(c *Cascade) []IntegralImage {
 
 NegativeLoop:
 	for _, neg := range i.negatives {
+		// Attempting to pick random adversaries before
+		// brute forcing adversaries will hopefully help
+		// select a more diverse set of negatives in the
+		// earlier stages.
+		for i := 0; i < randomAdversaryAttempts; i++ {
+			cropping := randomCropping(neg, width, height)
+			if c.Classify(cropping) {
+				res = append(res, cropping)
+				continue NegativeLoop
+			}
+		}
+
 		for x := 0; x <= neg.Width()-width; x++ {
 			for y := 0; y <= neg.Height()-height; y++ {
 				cropping := neg.Window(x, y, width, height)
