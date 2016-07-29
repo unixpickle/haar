@@ -1,6 +1,9 @@
 package haar
 
-import "math"
+import (
+	"image"
+	"math"
+)
 
 // An IntegralImage is a grayscale image optimized for
 // Haar-like feature computatiod.
@@ -21,6 +24,22 @@ type IntegralImage interface {
 	// image needn't be zero, since an image may be the
 	// cropped version of another image.
 	IntegralAt(x, y int) float64
+}
+
+// ImageIntegralImage creates an IntegralImage from an
+// image.Image, turning the image into grayscale.
+func ImageIntegralImage(img image.Image) IntegralImage {
+	bitmap := make([]float64, img.Bounds().Dx()*img.Bounds().Dy())
+	var idx int
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			brightness := float64(r+g+b) / (3 * 0xffff)
+			bitmap[idx] = brightness
+			idx++
+		}
+	}
+	return BitmapIntegralImage(bitmap, img.Bounds().Dx(), img.Bounds().Dy())
 }
 
 // BitmapIntegralImage creates an IntegralImage from a
@@ -51,6 +70,22 @@ func BitmapIntegralImage(pixels []float64, width, height int) IntegralImage {
 	}
 
 	return res
+}
+
+// ScaleIntegralImage creates an IntegralImage that
+// approximates a scaled version of img.
+func ScaleIntegralImage(img IntegralImage, width, height int) IntegralImage {
+	xScale := float64(width) / float64(img.Width())
+	yScale := float64(height) / float64(img.Height())
+	return &scaledImage{
+		img:       img,
+		newWidth:  width,
+		newHeight: height,
+
+		xUnscale:  1 / xScale,
+		yUnscale:  1 / yScale,
+		areaScale: xScale * yScale,
+	}
 }
 
 // A DualImage stores an image in such a way that it
@@ -170,4 +205,28 @@ func (c *croppedImage) IntegralAt(x, y int) float64 {
 	area := float64((x + c.x) * (y + c.y))
 	rawVal := c.img.IntegralAt(x+c.x, y+c.y)
 	return (rawVal - area*c.mean) / c.stddev
+}
+
+type scaledImage struct {
+	img       IntegralImage
+	newWidth  int
+	newHeight int
+
+	xUnscale  float64
+	yUnscale  float64
+	areaScale float64
+}
+
+func (s *scaledImage) Width() int {
+	return s.newWidth
+}
+
+func (s *scaledImage) Height() int {
+	return s.newHeight
+}
+
+func (s *scaledImage) IntegralAt(x, y int) float64 {
+	newX := int(float64(x)*s.xUnscale + 0.5)
+	newY := int(float64(y)*s.yUnscale + 0.5)
+	return s.img.IntegralAt(newX, newY) * s.areaScale
 }

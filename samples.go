@@ -115,18 +115,7 @@ func readImage(imgPath string) (*DualImage, error) {
 		return nil, err
 	}
 
-	bitmap := make([]float64, img.Bounds().Dx()*img.Bounds().Dy())
-	var idx int
-	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
-		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			brightness := float64(r+g+b) / (3 * 0xffff)
-			bitmap[idx] = brightness
-			idx++
-		}
-	}
-
-	bmp := BitmapIntegralImage(bitmap, img.Bounds().Dx(), img.Bounds().Dy())
+	bmp := ImageIntegralImage(img)
 	return NewDualImage(bmp), nil
 }
 

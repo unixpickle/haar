@@ -1,5 +1,12 @@
 package haar
 
+// These are defaults recommended in the original
+// Viola-Jones paper on face detection.
+const (
+	DefaultScanScale  = 1.25
+	DefaultScanStride = 1
+)
+
 // A Classifier is a weighted sum of single-feature
 // classifiers.
 type Classifier struct {
@@ -59,4 +66,63 @@ func (c *Cascade) Classify(img IntegralImage) bool {
 		}
 	}
 	return true
+}
+
+// Scan looks for instances of this cascade within an
+// entire image.
+//
+// The cascade is scaled by various powers of scale to
+// find objects of different sizes.
+// If scale is 0, DefaultScanScale is used.
+//
+// The cascade is moved horizontally and vertically
+// during scanning according to the stride argument.
+// If the stride is 0, DefaultScanStride is used.
+// The stride specifies how many pixels (relative to the
+// size of the cascade) to move the cascade for each
+// iteration of the scanning process.
+// A value of 1 means that the unscaled cascade is moved
+// one pixel at a time.
+//
+// The result may contain overlapping matches.
+func (c *Cascade) Scan(img *DualImage, scale, stride float64) Matches {
+	if scale == 0 {
+		scale = DefaultScanScale
+	}
+	if stride == 0 {
+		stride = DefaultScanStride
+	}
+
+	var res Matches
+	curScale := 1.0
+	for {
+		cropWidth := int(float64(c.WindowWidth)*curScale + 0.5)
+		cropHeight := int(float64(c.WindowHeight)*curScale + 0.5)
+		if cropWidth > img.Width() || cropHeight > img.Height() {
+			break
+		}
+
+		curStride := curScale * stride
+
+		for y := 0.0; int(y) <= img.Height()-cropHeight; y += curStride {
+			for x := 0.0; int(x) <= img.Width()-cropWidth; x += curStride {
+				cropping := img.Window(int(x), int(y), cropWidth, cropHeight)
+				if curScale != 1 {
+					cropping = ScaleIntegralImage(cropping, c.WindowWidth, c.WindowHeight)
+				}
+				if c.Classify(cropping) {
+					res = append(res, &Match{
+						X:      int(x),
+						Y:      int(y),
+						Width:  cropWidth,
+						Height: cropHeight,
+					})
+				}
+			}
+		}
+
+		curScale *= scale
+	}
+
+	return res
 }

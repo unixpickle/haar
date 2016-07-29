@@ -26,32 +26,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	reqs := []*haar.Requirements{
-		{
-			PositiveRetention: 0.99,
+	var reqs []*haar.Requirements
+	for i := 0; i < 1; i++ {
+		reqs = append(reqs, &haar.Requirements{
+			PositiveRetention: 0.995,
 			NegativeExclusion: 0.6,
-			MaxFeatures:       3,
-		},
-		{
-			PositiveRetention: 0.99,
-			NegativeExclusion: 0.5,
-			MaxFeatures:       10,
-		},
-		{
-			PositiveRetention: 0.99,
-			NegativeExclusion: 0.6,
-			MaxFeatures:       25,
-		},
-		{
-			PositiveRetention: 0.99,
-			NegativeExclusion: 0.6,
-			MaxFeatures:       50,
-		},
+			MaxFeatures:       100,
+		})
 	}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 1; i++ {
 		reqs = append(reqs, &haar.Requirements{
 			PositiveRetention: 1,
-			NegativeExclusion: 0.6,
+			NegativeExclusion: 0.8,
 			MaxFeatures:       100,
 		})
 	}
