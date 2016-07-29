@@ -8,6 +8,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"io/ioutil"
+	"math"
 	"os"
 
 	"github.com/llgcode/draw2d/draw2dimg"
@@ -66,6 +67,7 @@ func AnnotateImage(img image.Image, matches haar.Matches) image.Image {
 
 	ctx.DrawImage(img)
 	ctx.SetStrokeColor(color.RGBA{R: 0xff, A: 0xff})
+	ctx.SetLineWidth(math.Max(1, float64(img.Bounds().Dx())/500))
 	for _, match := range matches {
 		ctx.BeginPath()
 		ctx.MoveTo(float64(match.X), float64(match.Y))
