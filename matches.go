@@ -41,15 +41,25 @@ func (m Matches) Overlaps(m1 *Match) bool {
 func (m Matches) JoinOverlaps() Matches {
 	var clusters []Matches
 
-MatchLoop:
 	for _, match := range m {
+		var overlaps []int
 		for i, cluster := range clusters {
 			if cluster.Overlaps(match) {
-				clusters[i] = append(clusters[i], match)
-				continue MatchLoop
+				overlaps = append(overlaps, i)
 			}
 		}
-		clusters = append(clusters, Matches{match})
+		if len(overlaps) == 0 {
+			clusters = append(clusters, Matches{match})
+		} else {
+			first := overlaps[0]
+			clusters[first] = append(clusters[first], match)
+			for i := len(overlaps) - 1; i > 0; i-- {
+				k := overlaps[i]
+				clusters[first] = append(clusters[first], clusters[k]...)
+				clusters[k] = clusters[len(clusters)-1]
+				clusters = clusters[:len(clusters)-1]
+			}
+		}
 	}
 
 	res := make(Matches, len(clusters))
