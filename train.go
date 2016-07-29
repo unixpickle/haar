@@ -51,6 +51,9 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 		return &res
 	}
 
+	res.WindowWidth = positives[0].Width()
+	res.WindowHeight = positives[0].Height()
+
 	features := AllFeatures(positives[0].Width(), positives[0].Height())
 
 	for i, reqs := range layerReqs {
@@ -72,7 +75,7 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 	return &res
 }
 
-func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature,
+func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []*Feature,
 	l Logger) *Classifier {
 	allSamples := make([]IntegralImage, len(pos)+len(neg))
 	copy(allSamples, pos)
@@ -132,14 +135,14 @@ func (b boostingSamples) Len() int {
 }
 
 type boostingClassifier struct {
-	Feature   Feature
+	Feature   *Feature
 	Threshold float64
 }
 
 func (c *boostingClassifier) Classify(s boosting.SampleList) linalg.Vector {
 	res := make(linalg.Vector, s.Len())
 	for i, sample := range s.(boostingSamples) {
-		output := c.Feature.FeatureValue(sample)
+		output := c.Feature.Value(sample)
 		if output > c.Threshold {
 			res[i] = 1
 		} else {
@@ -155,11 +158,11 @@ type boostingOption struct {
 }
 
 type boostingPool struct {
-	Features []Feature
+	Features []*Feature
 }
 
 func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) boosting.Classifier {
-	featureChan := make(chan Feature, len(b.Features))
+	featureChan := make(chan *Feature, len(b.Features))
 	for _, f := range b.Features {
 		featureChan <- f
 	}
@@ -193,13 +196,13 @@ func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) bo
 	return bestOption.Classifier
 }
 
-func bestFeatureSplit(feature Feature, s boostingSamples, w linalg.Vector) boostingOption {
+func bestFeatureSplit(feature *Feature, s boostingSamples, w linalg.Vector) boostingOption {
 	var bestOption boostingOption
 
 	weightSumsForOutputs := map[float64]float64{}
 	var allOutputs []float64
 	for i, sample := range s {
-		output := feature.FeatureValue(sample)
+		output := feature.Value(sample)
 		if _, ok := weightSumsForOutputs[output]; !ok {
 			allOutputs = append(allOutputs, output)
 		}

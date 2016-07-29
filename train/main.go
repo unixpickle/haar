@@ -45,11 +45,13 @@ func main() {
 			NegativeExclusion: 0.6,
 			MaxFeatures:       50,
 		},
-		{
-			PositiveRetention: 0.99,
-			NegativeExclusion: 0.9,
+	}
+	for i := 0; i < 3; i++ {
+		reqs = append(reqs, &haar.Requirements{
+			PositiveRetention: 1,
+			NegativeExclusion: 0.6,
 			MaxFeatures:       100,
-		},
+		})
 	}
 
 	haar.Train(reqs, samples, haar.ConsoleLogger{})

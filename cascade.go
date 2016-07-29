@@ -4,7 +4,7 @@ package haar
 // classifiers.
 type Classifier struct {
 	// Features is all the features.
-	Features []Feature
+	Features []*Feature
 
 	// Thresholds contains one threshold per feature.
 	// If a feature returns a value greater than its
@@ -29,7 +29,7 @@ func (c *Classifier) Classify(img IntegralImage) bool {
 	var sum float64
 	for i, feature := range c.Features {
 		var output float64
-		if feature.FeatureValue(img) > c.Thresholds[i] {
+		if feature.Value(img) > c.Thresholds[i] {
 			output = 1
 		} else {
 			output = -1
@@ -44,10 +44,12 @@ func (c *Classifier) Classify(img IntegralImage) bool {
 // only if every classifier in the series returns
 // positive.
 type Cascade struct {
-	Layers []*Classifier
+	Layers       []*Classifier
+	WindowWidth  int
+	WindowHeight int
 }
 
-// Classify classifies the given image by running it
+// Classify classifies the given window by running it
 // through the cascade.
 // If the result is positive, this returns true.
 func (c *Cascade) Classify(img IntegralImage) bool {

@@ -1,21 +1,35 @@
 package haar
 
-// A Feature is anything capable of computing a value
-// for itself given an image window.
-type Feature interface {
-	// Bounds returns the rectangle in each window that
-	// this feature takes into account.
-	Bounds() (x, y, width, height int)
+import "fmt"
 
-	// FeatureValue evaluates the feature in the given
-	// window image.
-	FeatureValue(img IntegralImage) float64
+type FeatureType int
+
+const (
+	HorizontalPair FeatureType = iota
+	VerticalPair
+	HorizontalTriple
+	VerticalTriple
+	Diagonal
+)
+
+// A Feature is a Haar-like feature.
+// Features are computed by subtracting the pixel sums
+// in some rectangles from those in others.
+type Feature struct {
+	Type FeatureType
+
+	// These coordinates define the bounding box of the
+	// feature inside the window.
+	X      int
+	Y      int
+	Width  int
+	Height int
 }
 
 // AllFeatures builds a list of every haar-like feature
 // that fits in the given window size.
-func AllFeatures(width, height int) []Feature {
-	var res []Feature
+func AllFeatures(width, height int) []*Feature {
+	var res []*Feature
 	for w := 1; w <= width; w++ {
 		for h := 1; h <= height; h++ {
 			if h == 1 && w == 1 {
@@ -23,21 +37,31 @@ func AllFeatures(width, height int) []Feature {
 			}
 			for y := 0; y <= height-h; y++ {
 				for x := 0; x <= width-w; x++ {
-					rect := featureRect{x, y, w, h}
+					f := Feature{X: x, Y: y, Width: w, Height: h}
 					if w%2 == 0 {
-						res = append(res, &rectPair{rect, true})
+						hf := f
+						hf.Type = HorizontalPair
+						res = append(res, &hf)
 					}
 					if h%2 == 0 {
-						res = append(res, &rectPair{rect, false})
+						vf := f
+						vf.Type = VerticalPair
+						res = append(res, &vf)
 					}
 					if w%2 == 0 && h%2 == 0 {
-						res = append(res, &diagonalRects{rect})
+						df := f
+						df.Type = Diagonal
+						res = append(res, &df)
 					}
 					if w%3 == 0 {
-						res = append(res, &tripleRects{rect, true})
+						hf := f
+						hf.Type = HorizontalTriple
+						res = append(res, &hf)
 					}
 					if h%3 == 0 {
-						res = append(res, &tripleRects{rect, false})
+						vf := f
+						vf.Type = VerticalTriple
+						res = append(res, &vf)
 					}
 				}
 			}
@@ -46,58 +70,74 @@ func AllFeatures(width, height int) []Feature {
 	return res
 }
 
-type featureRect struct {
-	X int
-	Y int
-	W int
-	H int
+// Value evaluates the feature on the given window.
+func (f *Feature) Value(img IntegralImage) float64 {
+	switch f.Type {
+	case HorizontalPair, VerticalPair:
+		return f.pair(img, f.Type == HorizontalPair)
+	case HorizontalTriple, VerticalTriple:
+		return f.triple(img, f.Type == HorizontalTriple)
+	case Diagonal:
+		return f.diagonal(img)
+	default:
+		panic(fmt.Sprintf("unknown feature type: %d", f.Type))
+	}
 }
 
-func (f *featureRect) Bounds() (x, y, width, height int) {
-	return f.X, f.Y, f.W, f.H
-}
-
-type rectPair struct {
-	featureRect
-
-	// If Horizontal is true, the two adjacent rects are
-	// next to each other; otherwise, they are on top of
-	// each other.
-	Horizontal bool
-}
-
-func (r *rectPair) FeatureValue(img IntegralImage) float64 {
+func (f *Feature) pair(img IntegralImage, horizontal bool) float64 {
 	var sum1, sum2 float64
-	if r.Horizontal {
-		midTop := img.IntegralAt(r.X+r.W/2, r.Y)
-		midBottom := img.IntegralAt(r.X+r.W/2, r.Y+r.H)
-		sum1 = midBottom + img.IntegralAt(r.X, r.Y) -
-			(midTop + img.IntegralAt(r.X, r.Y+r.H))
-		sum2 = midTop + img.IntegralAt(r.X+r.W, r.Y+r.H) -
-			(midBottom + img.IntegralAt(r.X+r.W, r.Y))
+	if horizontal {
+		midTop := img.IntegralAt(f.X+f.Width/2, f.Y)
+		midBottom := img.IntegralAt(f.X+f.Width/2, f.Y+f.Height)
+		sum1 = midBottom + img.IntegralAt(f.X, f.Y) -
+			(midTop + img.IntegralAt(f.X, f.Y+f.Height))
+		sum2 = midTop + img.IntegralAt(f.X+f.Width, f.Y+f.Height) -
+			(midBottom + img.IntegralAt(f.X+f.Width, f.Y))
 	} else {
-		midLeft := img.IntegralAt(r.X, r.Y+r.H/2)
-		midRight := img.IntegralAt(r.X+r.W, r.Y+r.H/2)
-		sum1 = midRight + img.IntegralAt(r.X, r.Y) -
-			(midLeft + img.IntegralAt(r.X+r.W, r.Y))
-		sum2 = midLeft + img.IntegralAt(r.X+r.W, r.Y+r.H) -
-			(midRight + img.IntegralAt(r.X, r.Y+r.H))
+		midLeft := img.IntegralAt(f.X, f.Y+f.Height/2)
+		midRight := img.IntegralAt(f.X+f.Width, f.Y+f.Height/2)
+		sum1 = midRight + img.IntegralAt(f.X, f.Y) -
+			(midLeft + img.IntegralAt(f.X+f.Width, f.Y))
+		sum2 = midLeft + img.IntegralAt(f.X+f.Width, f.Y+f.Height) -
+			(midRight + img.IntegralAt(f.X, f.Y+f.Height))
 	}
 	return sum1 - sum2
 }
 
-type diagonalRects struct {
-	featureRect
+func (f *Feature) triple(img IntegralImage, horizontal bool) float64 {
+	var integralValues [2][4]float64
+	if horizontal {
+		integralValues = [2][4]float64{
+			{img.IntegralAt(f.X, f.Y), img.IntegralAt(f.X+f.Width/3, f.Y),
+				img.IntegralAt(f.X+2*f.Width/3, f.Y), img.IntegralAt(f.X+f.Width, f.Y)},
+			{img.IntegralAt(f.X, f.Y+f.Height), img.IntegralAt(f.X+f.Width/3, f.Y+f.Height),
+				img.IntegralAt(f.X+2*f.Width/3, f.Y+f.Height), img.IntegralAt(f.X+f.Width, f.Y+f.Height)},
+		}
+	} else {
+		integralValues = [2][4]float64{
+			{img.IntegralAt(f.X, f.Y), img.IntegralAt(f.X, f.Y+f.Height/3),
+				img.IntegralAt(f.X, f.Y+2*f.Height/3), img.IntegralAt(f.X, f.Y+f.Height)},
+			{img.IntegralAt(f.X+f.Width, f.Y), img.IntegralAt(f.X+f.Width, f.Y+f.Height/3),
+				img.IntegralAt(f.X+f.Width, f.Y+2*f.Height/3), img.IntegralAt(f.X+f.Width, f.Y+f.Height)},
+		}
+	}
+	firstRect := integralValues[0][0] + integralValues[1][1] -
+		(integralValues[0][1] + integralValues[1][0])
+	secondRect := integralValues[0][1] + integralValues[1][2] -
+		(integralValues[0][2] + integralValues[1][1])
+	thirdRect := integralValues[0][2] + integralValues[1][3] -
+		(integralValues[0][3] + integralValues[1][2])
+	return firstRect + thirdRect - secondRect
 }
 
-func (d *diagonalRects) FeatureValue(img IntegralImage) float64 {
+func (f *Feature) diagonal(img IntegralImage) float64 {
 	integralValues := [3][3]float64{
-		{img.IntegralAt(d.X, d.Y), img.IntegralAt(d.X+d.W/2, d.Y),
-			img.IntegralAt(d.X+d.W, d.Y)},
-		{img.IntegralAt(d.X, d.Y+d.H/2), img.IntegralAt(d.X+d.W/2, d.Y+d.H/2),
-			img.IntegralAt(d.X+d.W, d.Y+d.H/2)},
-		{img.IntegralAt(d.X, d.Y+d.H), img.IntegralAt(d.X+d.W/2, d.Y+d.H),
-			img.IntegralAt(d.X+d.W, d.Y+d.H)},
+		{img.IntegralAt(f.X, f.Y), img.IntegralAt(f.X+f.Width/2, f.Y),
+			img.IntegralAt(f.X+f.Width, f.Y)},
+		{img.IntegralAt(f.X, f.Y+f.Height/2), img.IntegralAt(f.X+f.Width/2, f.Y+f.Height/2),
+			img.IntegralAt(f.X+f.Width, f.Y+f.Height/2)},
+		{img.IntegralAt(f.X, f.Y+f.Height), img.IntegralAt(f.X+f.Width/2, f.Y+f.Height),
+			img.IntegralAt(f.X+f.Width, f.Y+f.Height)},
 	}
 	topLeft := integralValues[0][0] + integralValues[1][1] -
 		(integralValues[1][0] + integralValues[0][1])
@@ -108,39 +148,4 @@ func (d *diagonalRects) FeatureValue(img IntegralImage) float64 {
 	bottomRight := integralValues[1][1] + integralValues[2][2] -
 		(integralValues[2][1] + integralValues[1][2])
 	return topLeft + bottomRight - (topRight + bottomLeft)
-}
-
-type tripleRects struct {
-	featureRect
-
-	// If Horizontal is true, the three rectangles go
-	// from left to right; otherwise, they go from top
-	// to bottom.
-	Horizontal bool
-}
-
-func (t *tripleRects) FeatureValue(img IntegralImage) float64 {
-	var integralValues [2][4]float64
-	if t.Horizontal {
-		integralValues = [2][4]float64{
-			{img.IntegralAt(t.X, t.Y), img.IntegralAt(t.X+t.W/3, t.Y),
-				img.IntegralAt(t.X+2*t.W/3, t.Y), img.IntegralAt(t.X+t.W, t.Y)},
-			{img.IntegralAt(t.X, t.Y+t.H), img.IntegralAt(t.X+t.W/3, t.Y+t.H),
-				img.IntegralAt(t.X+2*t.W/3, t.Y+t.H), img.IntegralAt(t.X+t.W, t.Y+t.H)},
-		}
-	} else {
-		integralValues = [2][4]float64{
-			{img.IntegralAt(t.X, t.Y), img.IntegralAt(t.X, t.Y+t.H/3),
-				img.IntegralAt(t.X, t.Y+2*t.H/3), img.IntegralAt(t.X, t.Y+t.H)},
-			{img.IntegralAt(t.X+t.W, t.Y), img.IntegralAt(t.X+t.W, t.Y+t.H/3),
-				img.IntegralAt(t.X+t.W, t.Y+2*t.H/3), img.IntegralAt(t.X+t.W, t.Y+t.H)},
-		}
-	}
-	firstRect := integralValues[0][0] + integralValues[1][1] -
-		(integralValues[0][1] + integralValues[1][0])
-	secondRect := integralValues[0][1] + integralValues[1][2] -
-		(integralValues[0][2] + integralValues[1][1])
-	thirdRect := integralValues[0][2] + integralValues[1][3] -
-		(integralValues[0][3] + integralValues[1][2])
-	return firstRect + thirdRect - secondRect
 }

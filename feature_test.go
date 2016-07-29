@@ -7,7 +7,7 @@ import (
 
 type featureTest struct {
 	Desc     string
-	Feature  Feature
+	Feature  *Feature
 	Expected float64
 }
 
@@ -17,57 +17,57 @@ func TestBuiltinFeatures(t *testing.T) {
 	tests := []featureTest{
 		{
 			Desc:     "horizontal pair",
-			Feature:  &rectPair{featureRect{1, 1, 4, 2}, true},
+			Feature:  &Feature{HorizontalPair, 1, 1, 4, 2},
 			Expected: rectangleSum(img, 1, 1, 2, 2) - rectangleSum(img, 3, 1, 2, 2),
 		},
 		{
 			Desc:     "horizontal pair (short)",
-			Feature:  &rectPair{featureRect{1, 3, 4, 1}, true},
+			Feature:  &Feature{HorizontalPair, 1, 3, 4, 1},
 			Expected: rectangleSum(img, 1, 3, 2, 1) - rectangleSum(img, 3, 3, 2, 1),
 		},
 		{
 			Desc:     "vertical pair",
-			Feature:  &rectPair{featureRect{1, 1, 2, 4}, false},
+			Feature:  &Feature{VerticalPair, 1, 1, 2, 4},
 			Expected: rectangleSum(img, 1, 1, 2, 2) - rectangleSum(img, 1, 3, 2, 2),
 		},
 		{
 			Desc:     "vertical pair (thin)",
-			Feature:  &rectPair{featureRect{2, 0, 1, 4}, false},
+			Feature:  &Feature{VerticalPair, 2, 0, 1, 4},
 			Expected: rectangleSum(img, 2, 0, 1, 2) - rectangleSum(img, 2, 2, 1, 2),
 		},
 		{
 			Desc:    "diagonal",
-			Feature: &diagonalRects{featureRect{1, 1, 4, 4}},
+			Feature: &Feature{Diagonal, 1, 1, 4, 4},
 			Expected: rectangleSum(img, 1, 1, 2, 2) + rectangleSum(img, 3, 3, 2, 2) -
 				(rectangleSum(img, 1, 3, 2, 2) + rectangleSum(img, 3, 1, 2, 2)),
 		},
 		{
 			Desc:    "diagonal (short)",
-			Feature: &diagonalRects{featureRect{1, 1, 4, 2}},
+			Feature: &Feature{Diagonal, 1, 1, 4, 2},
 			Expected: rectangleSum(img, 1, 1, 2, 1) + rectangleSum(img, 3, 2, 2, 1) -
 				(rectangleSum(img, 1, 2, 2, 1) + rectangleSum(img, 3, 1, 2, 1)),
 		},
 		{
 			Desc:    "diagonal (thin)",
-			Feature: &diagonalRects{featureRect{1, 1, 2, 4}},
+			Feature: &Feature{Diagonal, 1, 1, 2, 4},
 			Expected: rectangleSum(img, 1, 1, 1, 2) + rectangleSum(img, 2, 3, 1, 2) -
 				(rectangleSum(img, 1, 3, 1, 2) + rectangleSum(img, 2, 1, 1, 2)),
 		},
 		{
 			Desc:    "horizontal triple",
-			Feature: &tripleRects{featureRect{1, 1, 6, 3}, true},
+			Feature: &Feature{HorizontalTriple, 1, 1, 6, 3},
 			Expected: rectangleSum(img, 1, 1, 2, 3) + rectangleSum(img, 5, 1, 2, 3) -
 				rectangleSum(img, 3, 1, 2, 3),
 		},
 		{
 			Desc:    "vertical triple",
-			Feature: &tripleRects{featureRect{1, 1, 3, 6}, false},
+			Feature: &Feature{VerticalTriple, 1, 1, 3, 6},
 			Expected: rectangleSum(img, 1, 1, 3, 2) + rectangleSum(img, 1, 5, 3, 2) -
 				rectangleSum(img, 1, 3, 3, 2),
 		},
 	}
 	for _, test := range tests {
-		actual := test.Feature.FeatureValue(img)
+		actual := test.Feature.Value(img)
 		if math.Abs(test.Expected-actual) > 1e-5 {
 			t.Errorf("%s: expected %f got %f", test.Desc, test.Expected, actual)
 		}
