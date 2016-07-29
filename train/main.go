@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -54,7 +56,15 @@ func main() {
 		})
 	}
 
-	haar.Train(reqs, samples, haar.ConsoleLogger{})
+	cascade := haar.Train(reqs, samples, haar.ConsoleLogger{})
 
-	// TODO: save results here.
+	data, err := json.Marshal(cascade)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to marshal data:", err)
+		os.Exit(1)
+	}
+	if err := ioutil.WriteFile(os.Args[3], data, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to write file:", err)
+		os.Exit(1)
+	}
 }
