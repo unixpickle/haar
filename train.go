@@ -10,6 +10,8 @@ import (
 	"github.com/unixpickle/weakai/boosting"
 )
 
+const trainingPositiveBias = 2
+
 // Requirements stores minimum requirements for training
 // a layer in a cascade.
 type Requirements struct {
@@ -84,7 +86,9 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 	}
 
 	gradient := boosting.Gradient{
-		Loss:    boosting.ExpLoss{},
+		Loss: &boosting.WeightedExpLoss{
+			PosWeight: trainingPositiveBias * float64(len(neg)) / float64(len(pos)),
+		},
 		Desired: desired,
 		List:    boostingSamples(allSamples),
 		Pool:    &boostingPool{Features: features},
@@ -96,7 +100,12 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 		threshold = necessaryThreshold(gradient.OutCache, desired, reqs.PositiveRetention)
 		ret, exc := boostingScores(gradient.OutCache, desired, threshold)
 		if l != nil {
-			l.LogFeature(i+1, ret, exc)
+			if exc > 0 {
+				l.LogFeature(i+1, ret, exc)
+			} else {
+				rawRet, rawExc := boostingScores(gradient.OutCache, desired, 0)
+				l.LogFeature(i+1, rawRet, rawExc)
+			}
 		}
 		if ret >= reqs.PositiveRetention && exc >= reqs.NegativeExclusion {
 			break

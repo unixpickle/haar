@@ -27,17 +27,27 @@ func main() {
 	reqs := []*haar.Requirements{
 		{
 			PositiveRetention: 0.99,
-			NegativeExclusion: 0.4,
+			NegativeExclusion: 0.6,
+			MaxFeatures:       3,
+		},
+		{
+			PositiveRetention: 0.99,
+			NegativeExclusion: 0.5,
 			MaxFeatures:       10,
 		},
 		{
 			PositiveRetention: 0.99,
-			NegativeExclusion: 0.4,
-			MaxFeatures:       20,
+			NegativeExclusion: 0.6,
+			MaxFeatures:       25,
 		},
 		{
 			PositiveRetention: 0.99,
-			NegativeExclusion: 0.4,
+			NegativeExclusion: 0.6,
+			MaxFeatures:       50,
+		},
+		{
+			PositiveRetention: 0.99,
+			NegativeExclusion: 0.9,
 			MaxFeatures:       100,
 		},
 	}
