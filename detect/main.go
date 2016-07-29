@@ -1,3 +1,4 @@
+// Command detect runs a cascade on an image.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Command train trains a new Haar cascade.
 package main
 
 import (
