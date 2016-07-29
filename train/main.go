@@ -27,14 +27,14 @@ func main() {
 	}
 
 	var reqs []*haar.Requirements
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 4; i++ {
 		reqs = append(reqs, &haar.Requirements{
 			PositiveRetention: 0.995,
 			NegativeExclusion: 0.6,
 			MaxFeatures:       100,
 		})
 	}
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 7; i++ {
 		reqs = append(reqs, &haar.Requirements{
 			PositiveRetention: 1,
 			NegativeExclusion: 0.8,

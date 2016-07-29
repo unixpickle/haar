@@ -43,6 +43,9 @@ type Requirements struct {
 // requirements for its layers.
 //
 // If the given Logger is nil, nothing will be logged.
+//
+// This may return fewer than the requested number of
+// layers if all negative samples are dealt with.
 func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 	var res Cascade
 
@@ -68,6 +71,9 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 		}
 		if l != nil {
 			l.LogCreatedNegatives(len(negs))
+		}
+		if len(negs) == 0 {
+			break
 		}
 		layer := trainLayer(reqs, positives, negs, features, l)
 		res.Layers = append(res.Layers, layer)
