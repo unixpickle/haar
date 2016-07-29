@@ -31,6 +31,9 @@ type Requirements struct {
 
 	// MaxFeatures specifies the maximum number of
 	// features to be used in this layer.
+	// If MaxFeatures is exceeded before NegativeExclusion,
+	// the layer should be used despite its sub-par
+	// exclusion capability.
 	MaxFeatures int
 }
 
@@ -38,11 +41,6 @@ type Requirements struct {
 // requirements for its layers.
 //
 // If the given Logger is nil, nothing will be logged.
-//
-// Train may return a cascade with fewer layers than
-// there are requirements in the requirement list.
-// If this happens, it means that the final layer could
-// not meet the necessary requirements.
 func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 	var res Cascade
 
@@ -66,18 +64,14 @@ func Train(layerReqs []*Requirements, s SampleSource, l Logger) *Cascade {
 		if l != nil {
 			l.LogCreatedNegatives(len(negs))
 		}
-		layer, good := trainLayer(reqs, positives, negs, features, l)
+		layer := trainLayer(reqs, positives, negs, features, l)
 		res.Layers = append(res.Layers, layer)
-		if !good {
-			break
-		}
 	}
 	return &res
 }
 
 func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature,
-	l Logger) (classifier *Classifier, satisfactory bool) {
-
+	l Logger) *Classifier {
 	allSamples := make([]IntegralImage, len(pos)+len(neg))
 	copy(allSamples, pos)
 	copy(allSamples[len(pos):], neg)
@@ -101,14 +95,15 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 		gradient.Step()
 		threshold = necessaryThreshold(gradient.OutCache, desired, reqs.PositiveRetention)
 		ret, exc := boostingScores(gradient.OutCache, desired, threshold)
-		l.LogFeature(i+1, ret, exc)
+		if l != nil {
+			l.LogFeature(i+1, ret, exc)
+		}
 		if ret >= reqs.PositiveRetention && exc >= reqs.NegativeExclusion {
-			satisfactory = true
 			break
 		}
 	}
 
-	classifier = &Classifier{}
+	classifier := &Classifier{}
 	for i, feature := range gradient.Sum.Classifiers {
 		c := feature.(*boostingClassifier)
 		weight := gradient.Sum.Weights[i]
@@ -118,7 +113,7 @@ func trainLayer(reqs *Requirements, pos, neg []IntegralImage, features []Feature
 	}
 	classifier.Threshold = threshold
 
-	return
+	return classifier
 }
 
 type boostingSamples []IntegralImage
