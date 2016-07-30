@@ -54,6 +54,16 @@ func main() {
 
 	log.Println("Adding layer ...")
 
+	if len(samples.Positives()) > 0 {
+		pos := samples.Positives()[0]
+		if pos.Width() != cascade.WindowWidth || pos.Height() != cascade.WindowHeight {
+			fmt.Fprintf(os.Stderr, "Positive size should be %dx%d but got %dx%d\n",
+				cascade.WindowWidth, cascade.WindowHeight,
+				pos.Width(), pos.Height())
+			os.Exit(1)
+		}
+	}
+
 	reqs := []*haar.Requirements{{
 		PositiveRetention: retention,
 		NegativeExclusion: exclusion,
