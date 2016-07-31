@@ -24,7 +24,7 @@
         ctx.strokeStyle = '#ff0000';
         for (var i = 0, len = matches.length; i < len; ++i) {
           var match = matches[i];
-          ctx.strokeRect(match.X, match.X, match.Width, match.Height);
+          ctx.strokeRect(match.X, match.Y, match.Width, match.Height);
         }
       }, 100);
     };

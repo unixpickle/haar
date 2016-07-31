@@ -30,7 +30,7 @@ func recognize(this *js.Object, dataArg []*js.Object) interface{} {
 	img := haar.BitmapIntegralImage(bitmap, width, height)
 	dualImg := haar.NewDualImage(img)
 
-	matches := cascade.Scan(dualImg, 0, 1.5).JoinOverlaps(2)
+	matches := cascade.Scan(dualImg, 0, 1.5).JoinOverlaps(overlapThreshold)
 	data, _ := json.Marshal(matches)
 	return js.Global.Get("JSON").Call("parse", string(data))
 }
