@@ -16,6 +16,8 @@ import (
 	"github.com/unixpickle/haar"
 )
 
+const OverlapThreshold = 0.3
+
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "Usage: %s cascade.json input.png output.png\n", os.Args[0])
@@ -46,7 +48,8 @@ func main() {
 	}
 
 	intImg := haar.ImageIntegralImage(img)
-	matches := cascade.Scan(haar.NewDualImage(intImg), 0, 0).JoinOverlaps()
+	matches := cascade.Scan(haar.NewDualImage(intImg), 0, 0)
+	matches = matches.JoinOverlaps(OverlapThreshold)
 
 	output, err := os.Create(os.Args[3])
 	if err != nil {

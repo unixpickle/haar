@@ -1,10 +1,22 @@
 package haar
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 type matchesTest struct {
 	RawMatches   Matches
 	Consolidated Matches
+}
+
+func TestMatchOverlap(t *testing.T) {
+	m1 := &Match{10, 10, 30, 20}
+	m2 := &Match{11, 5, 15, 10}
+	overlap := m1.Overlap(m2)
+	if math.Abs(overlap-75.0/150) > 1e-5 {
+		t.Error("expected overlap of 0.5 but got", overlap)
+	}
 }
 
 func TestJoinOverlaps(t *testing.T) {
@@ -39,7 +51,7 @@ func TestJoinOverlaps(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		actual := test.RawMatches.JoinOverlaps()
+		actual := test.RawMatches.JoinOverlaps(0)
 		expected := test.Consolidated
 		if len(actual) != len(expected) {
 			t.Errorf("test %d produced %d matches but expected %d",
