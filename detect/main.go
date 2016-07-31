@@ -16,7 +16,7 @@ import (
 	"github.com/unixpickle/haar"
 )
 
-const OverlapThreshold = 0.3
+const OverlapThreshold = 0.7
 
 func main() {
 	if len(os.Args) != 4 {
