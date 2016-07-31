@@ -9,20 +9,34 @@ import (
 
 const overlapThreshold = 0.3
 
-var cascade haar.Cascade
+var cascade *haar.Cascade
 
 func main() {
-	cascadeObj := js.Global.Get("app").Get("cascade")
-	jsonData := js.Global.Get("JSON").Call("stringify", cascadeObj)
-	json.Unmarshal([]byte(jsonData.String()), &cascade)
-	js.Global.Get("app").Set("detect", js.MakeFunc(recognize))
+	js.Global.Set("onmessage", js.MakeFunc(messageHandler))
 }
 
-func recognize(this *js.Object, dataArg []*js.Object) interface{} {
-	width := dataArg[0].Int()
-	height := dataArg[1].Int()
-	buffer := dataArg[2]
+func messageHandler(this *js.Object, dataArg []*js.Object) interface{} {
+	if len(dataArg) != 1 {
+		panic("expected one argument")
+	}
+	data := dataArg[0].Get("data")
 
+	if cascade == nil {
+		cascade = new(haar.Cascade)
+		jsonData := js.Global.Get("JSON").Call("stringify", data)
+		json.Unmarshal([]byte(jsonData.String()), cascade)
+	} else {
+		width := data.Index(0).Int()
+		height := data.Index(1).Int()
+		buffer := data.Index(2)
+		recognized := recognize(width, height, buffer)
+		js.Global.Call("postMessage", recognized)
+	}
+
+	return nil
+}
+
+func recognize(width, height int, buffer *js.Object) interface{} {
 	bitmap := make([]float64, buffer.Length())
 	for i := range bitmap {
 		bitmap[i] = buffer.Index(i).Float()

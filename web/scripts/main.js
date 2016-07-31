@@ -4,6 +4,7 @@
 
   var camera = null;
   var canvas = null;
+  var currentMatches = null;
 
   function initialize() {
     canvas = document.getElementById('video-cell');
@@ -14,24 +15,35 @@
     camera.onStart = function() {
       canvas.width = camera.outputDimensions().width;
       canvas.height = camera.outputDimensions().height;
+      var recognizing = false;
       setInterval(function() {
         var frame = camera.currentFrame();
         var ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(frame, 0, 0);
 
-        var matches = detectFacesInCanvas(frame);
-        ctx.strokeStyle = '#ff0000';
-        for (var i = 0, len = matches.length; i < len; ++i) {
-          var match = matches[i];
-          ctx.strokeRect(match.X, match.Y, match.Width, match.Height);
+        if (currentMatches !== null) {
+          ctx.strokeStyle = '#ff0000';
+          for (var i = 0, len = currentMatches.length; i < len; ++i) {
+            var match = currentMatches[i];
+            ctx.strokeRect(match.X, match.Y, match.Width, match.Height);
+          }
         }
+
+        if (recognizing) {
+          return;
+        }
+        recognizing = true;
+        var matches = detectFacesInCanvas(frame, function(matches) {
+          recognizing = false;
+          currentMatches = matches;
+        });
       }, 100);
     };
     camera.start();
   }
 
-  function detectFacesInCanvas(canvas) {
+  function detectFacesInCanvas(canvas, cb) {
     var ctx = canvas.getContext('2d');
     var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     var data = imageData.data;
@@ -41,7 +53,7 @@
       floatData[i] = (data[idx]+data[idx+1]+data[idx+2]) / 765;
       idx += 4;
     }
-    return window.app.detect(canvas.width, canvas.height, floatData);
+    window.app.detect(canvas.width, canvas.height, floatData, cb);
   }
 
   window.addEventListener('load', initialize);
