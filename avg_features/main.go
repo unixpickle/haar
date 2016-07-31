@@ -36,7 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Println("Running on images...")
+	log.Printf("Running %d-layer cascade on images...", len(cascade.Layers))
 
 	var totalFeatures int
 	var totalRuns int
