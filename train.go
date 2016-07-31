@@ -10,7 +10,10 @@ import (
 	"github.com/unixpickle/weakai/boosting"
 )
 
-const trainingPositiveBias = 2
+const (
+	trainingPositiveBias = 2
+	trainingBatchSize    = 10
+)
 
 // Requirements stores minimum requirements for training
 // a layer in a cascade.
@@ -183,12 +186,23 @@ type boostingOption struct {
 
 type boostingPool struct {
 	Features []*Feature
+
+	bins []*sortedBins
 }
 
 func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) boosting.Classifier {
-	featureChan := make(chan *Feature, len(b.Features))
-	for _, f := range b.Features {
-		featureChan <- f
+	needBins := b.bins == nil
+	if needBins {
+		b.bins = make([]*sortedBins, len(b.Features))
+	}
+
+	featureChan := make(chan []int, len(b.Features)/trainingBatchSize+1)
+	for i := 0; i < len(b.Features); i += trainingBatchSize {
+		idxList := make([]int, 0, trainingBatchSize)
+		for j := i; j < i+trainingBatchSize && j < len(b.Features); j++ {
+			idxList = append(idxList, j)
+		}
+		featureChan <- idxList
 	}
 	close(featureChan)
 
@@ -199,8 +213,15 @@ func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) bo
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for feature := range featureChan {
-				optionChan <- bestFeatureSplit(feature, s.(boostingSamples), w)
+			for featureIdxs := range featureChan {
+				for _, featureIdx := range featureIdxs {
+					feature := b.Features[featureIdx]
+					if needBins {
+						b.bins[featureIdx] = buildFeatureBins(feature,
+							s.(boostingSamples))
+					}
+					optionChan <- bestFeatureSplit(feature, b.bins[featureIdx], w)
+				}
 			}
 		}()
 	}
@@ -220,23 +241,25 @@ func (b *boostingPool) BestClassifier(s boosting.SampleList, w linalg.Vector) bo
 	return bestOption.Classifier
 }
 
-func bestFeatureSplit(feature *Feature, s boostingSamples, w linalg.Vector) boostingOption {
+func buildFeatureBins(feature *Feature, s boostingSamples) *sortedBins {
+	values := make([]float64, s.Len())
+	for i, sample := range s {
+		values[i] = feature.Value(sample)
+	}
+	return newSortedBins(values)
+}
+
+func bestFeatureSplit(feature *Feature, s *sortedBins, w linalg.Vector) boostingOption {
 	var bestOption boostingOption
 
-	weightSumsForOutputs := map[float64]float64{}
-	var allOutputs []float64
-	for i, sample := range s {
-		output := feature.Value(sample)
-		if _, ok := weightSumsForOutputs[output]; !ok {
-			allOutputs = append(allOutputs, output)
-		}
-		weightSumsForOutputs[output] += w[i]
+	weightSums := make([]float64, len(s.Sorted))
+	for unsorted, sorted := range s.Mapping {
+		weightSums[sorted] += w[unsorted]
 	}
-	sort.Float64s(allOutputs)
 
 	bestOption.Classifier = &boostingClassifier{
 		Feature:   feature,
-		Threshold: allOutputs[len(allOutputs)-1],
+		Threshold: s.Sorted[len(s.Sorted)-1],
 	}
 
 	// Start with the dot product where all outputs are
@@ -248,10 +271,10 @@ func bestFeatureSplit(feature *Feature, s boostingSamples, w linalg.Vector) boos
 	// Compute a rolling dot product as the -1's in the
 	// weak learner's output change to 1's.
 	weightDot := bestOption.WeightDot
-	for i := len(allOutputs) - 1; i > 0; i-- {
-		weightDot += 2 * weightSumsForOutputs[allOutputs[i]]
+	for i := len(s.Sorted) - 1; i > 0; i-- {
+		weightDot += 2 * weightSums[i]
 		if math.Abs(weightDot) > math.Abs(bestOption.WeightDot) {
-			bestOption.Classifier.Threshold = (allOutputs[i-1] + allOutputs[i]) / 2
+			bestOption.Classifier.Threshold = (s.Sorted[i-1] + s.Sorted[i]) / 2
 			bestOption.WeightDot = weightDot
 		}
 	}
