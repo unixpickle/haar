@@ -37,9 +37,9 @@ type Layer struct {
 	Threshold float64
 }
 
-// Classify runs the layer on an image.
-// It returns true if the sample is positive.
-func (c *Layer) Classify(img IntegralImage) bool {
+// Sum returns the weighted sum of all the feature
+// outputs when run on an image window.
+func (c *Layer) Sum(img IntegralImage) float64 {
 	var sum float64
 	for i, feature := range c.Features {
 		var output float64
@@ -50,7 +50,13 @@ func (c *Layer) Classify(img IntegralImage) bool {
 		}
 		sum += c.Weights[i] * output
 	}
-	return sum > c.Threshold
+	return sum
+}
+
+// Classify runs the layer on an image.
+// It returns true if the sample is positive.
+func (c *Layer) Classify(img IntegralImage) bool {
+	return c.Sum(img) > c.Threshold
 }
 
 // A Cascade classifies images by running them through
