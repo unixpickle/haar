@@ -172,7 +172,7 @@ NegativeLoop:
 }
 
 func randomCropping(img *DualImage, width, height int) IntegralImage {
-	x := rand.Intn(img.Width() - width)
-	y := rand.Intn(img.Height() - height)
+	x := rand.Intn(img.Width() - width + 1)
+	y := rand.Intn(img.Height() - height + 1)
 	return img.Window(x, y, width, height)
 }
